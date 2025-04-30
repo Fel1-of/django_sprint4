@@ -31,21 +31,34 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
 ]
 
+EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
+
+EMAIL_FILE_PATH = BASE_DIR / 'sent_emails'
+
+MEDIA_ROOT = BASE_DIR / 'media'
+
+LOGIN_REDIRECT_URL = 'blog:index'
+
+LOGIN_URL = 'login'
+
+CSRF_FAILURE_VIEW = 'pages.views.csrf_failure'
+
 # Application definition
 
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
+
 INSTALLED_APPS = [
-    'django_bootstrap5',
-    'blog.apps.BlogConfig',
-    'pages.apps.PagesConfig',
-    'core.apps.CoreConfig',
-    'users.apps.UsersConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'debug_toolbar',
+    'blog.apps.BlogConfig',
+    'pages.apps.PagesConfig',
+    'django_bootstrap5',
 ]
 
 MIDDLEWARE = [
@@ -56,14 +69,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
 ]
-
-INTERNAL_IPS = [
-    '127.0.0.1',
-]
-
-POSTS_PER_PAGE = 5
 
 ROOT_URLCONF = 'blogicum.urls'
 
@@ -146,23 +152,3 @@ STATICFILES_DIRS = [
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-CSRF_FAILURE_VIEW = 'pages.views.csrf_failure'
-
-AUTH_USER_MODEL = 'users.MyUser'
-
-LOGIN_REDIRECT_URL = 'blog:index'
-
-MEDIA_URL = '/media/'
-
-MEDIA_ROOT = BASE_DIR / 'media'
-
-EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
-
-EMAIL_FILE_PATH = BASE_DIR / 'sent_emails'
-
-LOGIN_URL = 'login'
-
-LIMIT_POSTS = 10
-
-ALLOWED_HOSTS = ['*']
