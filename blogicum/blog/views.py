@@ -1,9 +1,9 @@
-from datetime import datetime
-
 from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count
+from django.db.models import Count, Q
+from django.http import Http404
 from django.shortcuts import render, get_object_or_404, redirect
+from django.utils import timezone
 
 from .forms import PostForm, CommentForm, UserForm
 from .models import Post, Category, User, Comment
@@ -12,14 +12,20 @@ from .models import Post, Category, User, Comment
 NUMBER_OF_PAGINATOR_PAGES = 10
 
 
-def get_posts(**kwargs):
+def get_posts(*, for_author: bool = False, **filters):
     """Отфильтрованное получение постов"""
-    return Post.objects.select_related(
-        'category',
-        'location',
-        'author'
-    ).annotate(comment_count=Count('comments')
-               ).filter(**kwargs).order_by('-pub_date')
+    posts = (
+        Post.objects
+        .select_related('category', 'location', 'author')
+        .annotate(comment_count=Count('comments'))
+        .filter(**filters)
+    )
+
+    if not for_author:
+        posts = posts.filter(
+            Q(category__isnull=True) | Q(category__is_published=True))
+
+    return posts.order_by('-pub_date')
 
 
 def get_paginator(request, queryset,
@@ -34,8 +40,7 @@ def index(request):
     """Главная страница / Лента публикаций"""
     posts = get_posts(
         is_published=True,
-        category__is_published=True,
-        pub_date__lte=datetime.now())
+        pub_date__lte=timezone.now())
     page_obj = get_paginator(request, posts)
     context = {'page_obj': page_obj}
     return render(request, 'blog/index.html', context)
@@ -49,8 +54,7 @@ def category_posts(request, category_slug):
         is_published=True)
     posts = get_posts(
         is_published=True,
-        category__is_published=True,
-        pub_date__lte=datetime.now(),
+        pub_date__lte=timezone.now(),
         category=category)
     page_obj = get_paginator(request, posts)
     context = {'category': category,
@@ -60,14 +64,15 @@ def category_posts(request, category_slug):
 
 def post_detail(request, post_id):
     """Отображение полного описания выбранной публикации"""
-    post = get_object_or_404(Post, id=post_id)
+    post = get_object_or_404(Post, pk=post_id)
+    if not post.is_published and post.author != request.user:
+        raise Http404()
     if request.user != post.author:
         post = get_object_or_404(
             Post,
             id=post_id,
             is_published=True,
-            category__is_published=True,
-            pub_date__lte=datetime.now())
+            pub_date__lte=timezone.now())
     form = CommentForm(request.POST or None)
     comments = Comment.objects.select_related(
         'author').filter(post=post)
@@ -164,13 +169,14 @@ def profile(request, username):
     profile = get_object_or_404(
         User,
         username=username)
-    posts = get_posts(author=profile)
-    if request.user != profile:
+    if request.user == profile:  # свой профиль
+        posts = get_posts(for_author=True, author=profile)
+    else:  # чужой профиль
         posts = get_posts(
+            author=profile,
             is_published=True,
-            category__is_published=True,
-            pub_date__lte=datetime.now(),
-            author=profile)
+            pub_date__lte=timezone.now()
+        )
     page_obj = get_paginator(request, posts)
     context = {'profile': profile,
                'page_obj': page_obj}
